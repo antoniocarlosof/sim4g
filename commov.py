@@ -37,10 +37,10 @@ def max_radius(max_loss, freq, hb, hm):
 
     return R_max
 
-def max_throughput(bw, bpsimb):
+def max_throughput(bw, bpsimb, coderate):
     t_simb = 0.00001
     subcarries = bw*60
-    throughput = t_simb*subcarries*bpsimb
+    throughput = t_simb*subcarries*bpsimb*coderate
 
     return throughput
 
