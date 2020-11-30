@@ -1,4 +1,4 @@
-from math import sqrt, log10, pow
+from math import sqrt, log10, log2, pow
 from matplotlib import pyplot as plt
 
 import argparse
@@ -41,9 +41,9 @@ def link_budget(pot_tx, pot_rx, snr, Md, Gt, Pt):
 
 #Raio máximo é determinado a partir do modelo de Okumura-Hata, resolvido para a distância ao utilizar-se a maior perda aceitável (Link Budget)
 def max_radius(max_loss, freq, hb, hm):
-    x = 44.9 - 6.55*log10(hb)
+    b = 44.9 - 6.55*log10(hb)
     a = (1.11*log10(freq) - 0.7)*hm - 1.56*log10(freq) - 0.8
-    log_R_max = (max_loss - 69.55 - 26.16*log10(freq) + 13.82*log10(hb) + a)/x
+    log_R_max = (max_loss - 69.55 - 26.16*log10(freq) + 13.82*log10(hb) + a)/b
     R_max = pow(10, log_R_max)
     R_max = R_max*pow(10, 3)
 
@@ -73,6 +73,23 @@ def sir_triple_setor(hb):
     sir = pow(q, gama)/2
 
     return sir
+
+def loss_model(dist, freq, hb, hm):
+    b = 44.9 - 6.55*log10(hb)
+    a = (1.11*log10(freq) - 0.7)*hm - 1.56*log10(freq) - 0.8
+    loss = 69.55 + 26.16*log10(freq) - 13.82*log10(hb) + b*log10(dist) - a
+
+    return loss
+
+def snr_link_budget(pot_tx, pot_rx, loss, Md, Gt, Pt):
+    snr = - pot_tx + pot_rx - Gt + Pt - loss + Md
+
+    return snr
+
+def rate_Mbps(bw, snr):
+    r_Mbps = bw*log2(1 + snr)
+
+    return r_Mbps
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Input arguments")
