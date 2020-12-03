@@ -15,6 +15,9 @@ uplink_multipath = 3 #dB
 uplink_shadow_margin = 4 #dB
 
 def start_mcs():
+    # 0 -> bit rate
+    # 1 -> code rate
+
     mcs = {
         "QPSK 1/2":[2, 0.5],
         "QPSK 3/4":[2, 0.75],
@@ -82,14 +85,32 @@ def loss_model(dist, freq, hb, hm):
     return loss
 
 def snr_link_budget(pot_tx, pot_rx, loss, Md, Gt, Pt):
-    snr = - pot_tx + pot_rx - Gt + Pt - loss + Md
+    snr = pot_tx - pot_rx + Gt - Pt - loss - Md
 
     return snr
 
 def rate_Mbps(bw, snr):
-    r_Mbps = bw*log2(1 + snr)
+    try:
+        r_Mbps = bw*log2(1 + snr)
+    except:
+        r_Mbps = 0
+        print(snr)
 
     return r_Mbps
+
+def plot_rate(mcs):
+    colors = ["red", "blue", "green", "pink", "magenta", "yellow", "black", "orange"]
+
+    plt.title("Throughput da rede de acordo com a distância do UE")
+    plt.ylabel("Throughput [Mbps]")
+    plt.xlabel("Distância [m]")
+    plt.grid(True)
+    
+    for n, key in enumerate(mcs):
+        plt.plot(range(1, int(mcs[key][5])), mcs[key][6], color=colors[n], label=key)
+    
+    plt.legend()
+    plt.savefig("Throughput x Distância.png", format="png")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Input arguments")
@@ -104,6 +125,9 @@ if __name__ == "__main__":
     mcs = start_mcs()
 
     for modulation in mcs:
+        loss_rate = float()
+        snr_rate = float()
+        rate = list()
         bit_rate = mcs[modulation][0]
         code_rate = mcs[modulation][1]
         
@@ -125,4 +149,18 @@ if __name__ == "__main__":
         radius = max_radius(loss_max, 900, 30, 1.5)
         mcs[modulation].append(radius)
 
-    print(mcs)
+        for r in range(1, int(radius)):
+            loss_rate = loss_model(r/1000, 900, 30, 1.5)
+            snr_rate = snr_link_budget(uplink_pot_tx, 
+                                        uplink_sens_req_rx,
+                                        loss_rate,
+                                        uplink_shadow_margin,
+                                        uplink_Grx + uplink_Gtx + uplink_multipath,
+                                        uplink_rx_loss + uplink_tx_loss)
+            rate.append(rate_Mbps(bw, snr_rate))
+        
+        mcs[modulation].append(rate)
+    
+    plot_rate(mcs)
+
+    #print(mcs)
