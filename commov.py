@@ -65,7 +65,7 @@ def efficiency(throughput, bw):
     return se
 
 def snr(bw, c):
-    snr = pow(2, c/bw) - 1
+    snr = pow(2, c/(bw)) - 1
 
     return snr
 
@@ -108,37 +108,64 @@ def plot_rate(mcs):
     
     for n, key in enumerate(mcs):
         plt.plot(range(1, int(mcs[key][5])), mcs[key][6], color=colors[n], label=key)
+        print(key, " SNR mínimo:", mcs[key][4])
     
     plt.legend()
     plt.savefig("Throughput x Distância.png", format="png")
+
+def signal_rate(rate, signal):
+    noise = signal/rate
+    return noise
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Input arguments")
     parser.add_argument('--bandwidth', '-b',
                         type=float,
-                        help="Channel bandwidth to work on. It must be 1.4, 3, 5, 10, 15 or 20 [MHz]. Default = 20",
+                        help="Channel bandwidth to work on. It must be 1.4, 3, 5, 10, 15 or 20 [MHz]. Default = 20.",
                         default=20)
+    parser.add_argument('--area', '-a',
+                        type=float,
+                        help="Area to cover with LTE [km]. Required argument, without default value.",
+                        required=True)
+    parser.add_argument('--throughput', '-t',
+                        type=float,
+                        help="Mean throughput desired for the LTE network [Mbps]. Default = 25.",
+                        default=25)
 
     inputs = parser.parse_args()
 
     bw = inputs.bandwidth
+    area = inputs.area
+    desired_throughput = inputs.throughput
+
     mcs = start_mcs()
+    chosen_modulation = str()
 
     for modulation in mcs:
         loss_rate = float()
         snr_rate = float()
+        noise = float()
+        interference = float()
+        
         rate = list()
+        sinr = list()
+
         bit_rate = mcs[modulation][0]
         code_rate = mcs[modulation][1]
         
         throughput = max_throughput(bw, bit_rate, code_rate)
         mcs[modulation].append(throughput)
 
+        if desired_throughput >= throughput:
+            chosen_modulation = modulation
+
         snr_min = snr(bw, throughput)
         mcs[modulation].append(snr_min)
         
         sir = sir_triple_setor(30)
         mcs[modulation].append(sir)
+        interference = signal_rate(sir, uplink_pot_tx + uplink_Gtx)
 
         loss_max = link_budget(uplink_pot_tx, 
                                 uplink_sens_req_rx,
@@ -157,10 +184,15 @@ if __name__ == "__main__":
                                         uplink_shadow_margin,
                                         uplink_Grx + uplink_Gtx + uplink_multipath,
                                         uplink_rx_loss + uplink_tx_loss)
+            noise = signal_rate(snr_rate, uplink_pot_tx + uplink_Gtx)
+            
             rate.append(rate_Mbps(bw, snr_rate))
-        
+            sinr.append((uplink_pot_tx + uplink_Gtx)/(interference + noise))
+
         mcs[modulation].append(rate)
     
+    enb_area, enb_quantity = count_hex(area, mcs[chosen_modulation][5])
+
     plot_rate(mcs)
 
     #print(mcs)
