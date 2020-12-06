@@ -1,4 +1,5 @@
-from math import sqrt, log10, log2, pow
+from math import sqrt, log10, log2, pow, erfc, e
+from scipy.special import erfcinv
 from matplotlib import pyplot as plt
 
 import argparse
@@ -19,14 +20,9 @@ def start_mcs():
     # 1 -> code rate
 
     mcs = {
-        "QPSK 1/2":[2, 0.5],
-        "QPSK 3/4":[2, 0.75],
-        "16-QAM 1/2":[4, 0.5],
-        "16-QAM 3/4":[4, 0.75],
-        "64-QAM 1/2":[6, 0.5],
-        "64-QAM 2/3":[6, 0.666666],
-        "64-QAM 3/4":[6, 0.75],
-        "64-QAM 5/6":[6, 0.833333]}
+        "QPSK 1/3":[2, 0.333333, 2342010, 14.0051, -0.577897],
+        "16-QAM 1/2":[4, 0.5, 47613.1, 0.0926275, -0.29583],
+        "64-QAM 3/4":[6, 0.75, 26405.8, 0.0220186, -0.24491]}
 
     return mcs
 
@@ -38,84 +34,30 @@ def count_hex(area, radius):
 
     return hex_area, total_hex
 
-def link_budget(pot_tx, pot_rx, snr, Md, Gt, Pt):
-    Lmax = pot_tx - pot_rx + Gt - Pt - snr - Md
+def link_budget(pot_tx, pot_rx, Ms, Gt, Pt):
+    Lmax = pot_tx - pot_rx + Gt - Pt - Ms
     return Lmax
 
 #Raio máximo é determinado a partir do modelo de Okumura-Hata, resolvido para a distância ao utilizar-se a maior perda aceitável (Link Budget)
-def max_radius(max_loss, freq, hb, hm):
-    b = 44.9 - 6.55*log10(hb)
-    a = (1.11*log10(freq) - 0.7)*hm - 1.56*log10(freq) - 0.8
-    log_R_max = (max_loss - 69.55 - 26.16*log10(freq) + 13.82*log10(hb) + a)/b
+def max_radius(max_loss, freq):
+    alfa = 4
+    beta = 10.2
+    gama = 2.36
+
+    log_R_max = (max_loss - beta - 10*gama*log10(freq))/10*alfa
     R_max = pow(10, log_R_max)
-    R_max = R_max*pow(10, 3)
+    R_max = R_max/pow(10, 3)
 
     return R_max
 
-def max_throughput(bw, bpsimb, code_rate):
-    t_simb = 0.000071367
-    subcarries = bw*60
-    throughput = (1/t_simb)*subcarries*bpsimb*code_rate/pow(10, 6)
+def loss_model(dist, freq):
+    alfa = 4
+    beta = 10.2
+    gama = 2.36
 
-    return throughput
-
-def efficiency(throughput, bw):
-    se = throughput/bw
-
-    return se
-
-def snr(bw, c):
-    snr = pow(2, c/(bw)) - 1
-
-    return snr
-
-def sir_triple_setor(hb):
-    q = sqrt(3)
-    gama = (44.9 - 6.55*log10(hb))/10
-
-    sir = pow(q, gama)/2
-
-    return sir
-
-def loss_model(dist, freq, hb, hm):
-    b = 44.9 - 6.55*log10(hb)
-    a = (1.11*log10(freq) - 0.7)*hm - 1.56*log10(freq) - 0.8
-    loss = 69.55 + 26.16*log10(freq) - 13.82*log10(hb) + b*log10(dist) - a
+    loss = 10*alfa*log10(dist) + beta + 10*gama*log10(freq)
 
     return loss
-
-def snr_link_budget(pot_tx, pot_rx, loss, Md, Gt, Pt):
-    snr = pot_tx - pot_rx + Gt - Pt - loss - Md
-
-    return snr
-
-def rate_Mbps(bw, snr):
-    try:
-        r_Mbps = bw*log2(1 + snr)
-    except:
-        r_Mbps = 0
-        print(snr)
-
-    return r_Mbps
-
-def plot_rate(mcs):
-    colors = ["red", "blue", "green", "pink", "magenta", "yellow", "black", "orange"]
-
-    plt.title("Throughput da rede de acordo com a distância do UE")
-    plt.ylabel("Throughput [Mbps]")
-    plt.xlabel("Distância [m]")
-    plt.grid(True)
-    
-    for n, key in enumerate(mcs):
-        plt.plot(range(1, int(mcs[key][5])), mcs[key][6], color=colors[n], label=key)
-        print(key, " SNR mínimo:", mcs[key][4])
-    
-    plt.legend()
-    plt.savefig("Throughput x Distância.png", format="png")
-
-def signal_rate(rate, signal):
-    noise = signal/rate
-    return noise
 
 
 if __name__ == "__main__":
@@ -138,61 +80,55 @@ if __name__ == "__main__":
     bw = inputs.bandwidth
     area = inputs.area
     desired_throughput = inputs.throughput
+    ro = inputs.ro
+    gama = inputs.gama
+    eta = inputs.eta
 
-    mcs = start_mcs()
-    chosen_modulation = str()
+    n = 4
+    sigma = 7.6
+    prob_cobertura_celula = 0.9
+
+    Ms = 4*n/sigma - 3
+    Q = (erfc(Ms/(sigma*sqrt(2)))/2
+    prob_cobertura_borda = 1 - Q
+    
+    sigma_sir = sqrt(2*sigma*(1-ro))
+    Q_inv = sqrt(2)*erfcinv(2*prob_cobertura_borda)
+    M_in = -1*Q_inv*sigma_sir
+
+    m_in = pow(10, M_in/10)
+    D_in = 10*log10(m_in*gama*eta)
+
+    rate_rb = float()
+    rate_total = float()
+    temp_rate = float()
+    temp_sinr = float()
 
     for modulation in mcs:
-        loss_rate = float()
-        snr_rate = float()
-        noise = float()
-        interference = float()
+        for sinr in reversed(range(0, 34)):
+            rate_rb = mcs[modulation][2]/(mcs[modulation][3] + pow(e, mcs[modulation][4]*sinr))
+            rate_total = rate_rb*(5*bw)
+
+            if rate_total > desired_throughput:
+                temp = rate_total
+                temp_sinr = sinr
+            elif rate_total == desired_throughput:
+                temp = rate_total
+                temp_sinr = sinr
+                break
+            else:
+                break
         
-        rate = list()
-        sinr = list()
-
-        bit_rate = mcs[modulation][0]
-        code_rate = mcs[modulation][1]
+        mcs[modulation].append(temp_rate)
+        mcs[modulation].append(temp_sinr)
         
-        throughput = max_throughput(bw, bit_rate, code_rate)
-        mcs[modulation].append(throughput)
+        sens = temp_sinr + figura + 10*log10(180000) - 174 + D_in
+        loss = link_budget(P_tx, 
+                            sens, 
+                            Ms,
+                            uplink_multipath + uplink_Gtx + uplink_Grx,
+                            uplink_rx_loss + uplink_tx_loss)
+        radius = max_radius(loss, 2000)
 
-        if desired_throughput >= throughput:
-            chosen_modulation = modulation
-
-        snr_min = snr(bw, throughput)
-        mcs[modulation].append(snr_min)
-        
-        sir = sir_triple_setor(30)
-        mcs[modulation].append(sir)
-        interference = signal_rate(sir, uplink_pot_tx + uplink_Gtx)
-
-        loss_max = link_budget(uplink_pot_tx, 
-                                uplink_sens_req_rx,
-                                snr_min,
-                                uplink_shadow_margin,
-                                uplink_Grx + uplink_Gtx + uplink_multipath,
-                                uplink_rx_loss + uplink_tx_loss)
-        radius = max_radius(loss_max, 900, 30, 1.5)
-        mcs[modulation].append(radius)
-
-        for r in range(1, int(radius)):
-            loss_rate = loss_model(r/1000, 900, 30, 1.5)
-            snr_rate = snr_link_budget(uplink_pot_tx, 
-                                        uplink_sens_req_rx,
-                                        loss_rate,
-                                        uplink_shadow_margin,
-                                        uplink_Grx + uplink_Gtx + uplink_multipath,
-                                        uplink_rx_loss + uplink_tx_loss)
-            noise = signal_rate(snr_rate, uplink_pot_tx + uplink_Gtx)
-            
-            rate.append(rate_Mbps(bw, snr_rate))
-            sinr.append((uplink_pot_tx + uplink_Gtx)/(interference + noise))
-
-        mcs[modulation].append(rate)
+    mcs = start_mcs()
     
-    enb_area, enb_quantity = count_hex(area, mcs[chosen_modulation][5])
-
-    plot_rate(mcs)
-
-    #print(mcs)
