@@ -58,8 +58,8 @@ def loss_model(dist, freq):
 
     return loss
 
-def outdoor_radius(sigma, n, ro, gama, eta, bw, figura)
-
+def outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
+    prob_cobertura_borda = float()
     Ms = 4*n/sigma - 3
     Q = (erfc(Ms/(sigma*sqrt(2)))/2
     prob_cobertura_borda = 1 - Q
@@ -100,9 +100,11 @@ def outdoor_radius(sigma, n, ro, gama, eta, bw, figura)
                             Ms,
                             uplink_multipath + uplink_Gtx + uplink_Grx,
                             uplink_rx_loss + uplink_tx_loss)
-        return max_radius(loss, 2000)
+        mcs[modulation.append(max_radius(loss, 2600))
 
-def indoor_radius(sigma, n, ro, gama, eta, bw, figura)
+    return mcs
+
+def indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     sigma = sqrt(64 + pow(sigma, 2))
 
     Ms = 4*n/sigma - 3
@@ -145,9 +147,11 @@ def indoor_radius(sigma, n, ro, gama, eta, bw, figura)
                             Ms,
                             uplink_multipath + uplink_Gtx + uplink_Grx,
                             uplink_rx_loss + uplink_tx_loss)
-        return max_radius(loss, 2000)
+        mcs[modulation].append(max_radius(loss, 2600))
+    
+    return mcs
 
-def incar_radius(sigma, n, ro, gama, eta, bw, figura)
+def incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     sigma = sqrt(36 + pow(sigma, 2))
 
     Ms = 4*n/sigma - 3
@@ -190,7 +194,9 @@ def incar_radius(sigma, n, ro, gama, eta, bw, figura)
                             Ms,
                             uplink_multipath + uplink_Gtx + uplink_Grx,
                             uplink_rx_loss + uplink_tx_loss)
-        return max_radius(loss, 2000)
+        mcs[modulation].append(max_radius(loss, 2600))
+    
+    return mcs
 
 if __name__ == "__main__":
 
@@ -229,16 +235,18 @@ if __name__ == "__main__":
     prob_indoor = inputs[prob_indoor]
     prob_incar = inputs[prob_incar]
 
-
+    mcs = start_mcs()
     n = 4
     sigma = 7.6
     prob_cobertura_celula = 0.9
     
     #substituir as entradas ->
-    out_r = outdoor_radius(sigma, n, ro, gama, eta, bw, figura)
-    indoor_r = indoor_radius(sigma, n, ro, gama, eta, bw, figura)
-    incar_r = incar_radius(sigma, n, ro, gama, eta, bw, figura)
+    mcs = outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
+    mcs = indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
+    mcs = incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
 
-    radius = prob_outdoor*out_r + prob_indoor*indoor_r + prob_incar*incar_r
+    for modulation in mcs:
+        radius = prob_outdoor*mcs[modulation][7] + prob_indoor*mcs[modulation][8] + prob_incar*mcs[modulation][9]
+        print(radius)
 
     mcs = start_mcs()
