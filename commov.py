@@ -195,39 +195,39 @@ def incar_radius(sigma, n, ro, gama, eta, bw, figura)
 if __name__ == "__main__":
 
     inputs = {
-        "bandwidth" = 0,
-        "area" = 0,
-        "throughput" = 0,
-        "ro" = 0,
-        "gama" = 0,
-        "eta" = 0,
-        "prob_outdoor" = 0,
-        "prob_indoor" = 0,
-        "prob_incar" = 0,
-        "figura" = 0
+        "bandwidth": 0,
+        "area": 0,
+        "throughput": 0,
+        "ro": 0,
+        "gama": 0,
+        "eta": 0,
+        "prob_outdoor": 0,
+        "prob_indoor": 0,
+        "prob_incar": 0,
+        "figura": 0
     }
 
     #inputs
-    inputs.bandwidth = input("Please select Bandwidth: ")
-    inputs.area = input("Select desired area to be covered: ")
-    inputs.throughput = input("Select desired throughput: ")
-    inputs.ro = input("Select ro: ")
-    inputs.gama = input("Select gama: ")
-    inputs.eta = input("Select eta: ")
-    inputs.prob_outdoor = input("Select probability of user being outdoors: ")
-    inputs.prob_indoor = input("Select probability of user being indoors: ")
-    inputs.prob_incar = input("Select probability of user being in a car: ")
+    inputs[bandwidth] = input("Please select Bandwidth: ")
+    inputs[area] = input("Select desired area to be covered: ")
+    inputs[throughput] = input("Select desired throughput: ")
+    inputs[ro] = input("Select ro: ")
+    inputs[gama] = input("Select gama: ")
+    inputs[eta] = input("Select eta: ")
+    inputs[prob_outdoor] = input("Select probability of user being outdoors: ")
+    inputs[prob_indoor] = input("Select probability of user being indoors: ")
+    inputs[prob_incar] = input("Select probability of user being in a car: ")
 
 
-    bw = inputs.bandwidth
-    area = inputs.area
-    desired_throughput = inputs.throughput
-    ro = inputs.ro
-    gama = inputs.gama
-    eta = inputs.eta
-    prob_outdoor = inputs.prob_outdoor
-    prob_indoor = inputs.prob_indoor
-    prob_incar = inputs.prob_incar
+    bw = inputs[bandwidth]
+    area = inputs[area]
+    desired_throughput = inputs[throughput]
+    ro = inputs[ro]
+    gama = inputs[gama]
+    eta = inputs[eta]
+    prob_outdoor = inputs[prob_outdoor]
+    prob_indoor = inputs[prob_indoor]
+    prob_incar = inputs[prob_incar]
 
 
     n = 4
