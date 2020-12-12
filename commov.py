@@ -63,7 +63,7 @@ def outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     Ms = 4*n/sigma - 3
     Q = 1 - (erfc(Ms/(sigma*sqrt(2))))/2
     #prob_cobertura_borda = 1 - Q
-     
+
     sigma_sir = sqrt(2*sigma*(1-ro))
     Q_inv = sqrt(2)*erfcinv(2*Q)
     M_in = -1*Q_inv*sigma_sir
@@ -76,7 +76,7 @@ def outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     rate_total = float()
     temp_rate = float()
     temp_sinr = float()
-    
+
     for modulation in mcs:
         for sinr in reversed(range(0, 34)):
             rate_rb = mcs[modulation][2]/(mcs[modulation][3] + pow(e, mcs[modulation][4]*sinr))
@@ -155,7 +155,7 @@ def indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
                             uplink_rx_loss + uplink_tx_loss,
                             20)
         mcs[modulation].append(max_radius(loss, 2.6, modulation))
-    
+
     return mcs
 
 def incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
@@ -203,8 +203,64 @@ def incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
                             uplink_rx_loss + uplink_tx_loss,
                             10)
         mcs[modulation].append(max_radius(loss, 2.6, modulation))
-    
+
     return mcs
+
+def capacity(bw, mcs):
+    if bw == 20:
+        Nsc = 1200
+        Nrb = 100
+    elif bw == 15:
+        Nsc = 900
+        Nrb = 75
+    elif bw == 10:
+        Nsc = 600
+        Nrb = 50
+    elif bw == 5:
+        Nsc = 300
+        Nrb = 25
+    elif bw == 3:
+        Nsc = 180
+        Nrb = 15
+    elif bw == 1.4:
+        Nsc = 72
+        Nrb = 6
+    else:
+        print("Invalid Bandwidth. Choose either 20, 15, 10, 5, 3 or 1.4.[MHz]")
+
+    for modulation in mcs:
+        Capacity = (12 * Nrb * 7 * mcs[modulation][0]*mcs[modulation][1] * 2) / 0.001
+        print(modulation, ": a capacidade estimada do sistema é ", Capacity, " bps")
+
+def active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs):
+    active_users_total = users*0.15*0.1 #Penetration Ratio de 15% e Usage Ratio de 10%
+    user_density = active_users_total/area
+
+    active_users_per_cell = user_density*mcs["QPSK 1/3"][11]
+
+    #Raios iniciais para cada modulação
+    radius_QPSK = prob_outdoor*mcs["QPSK 1/3"][8] + prob_indoor*mcs["QPSK 1/3"][9] + prob_incar*mcs["QPSK 1/3"][10]
+    radius_16QAM = prob_outdoor*mcs["16-QAM 1/2"][8] + prob_indoor*mcs["16-QAM 1/2"][9] + prob_incar*mcs["16-QAM 1/2"][10]
+    radius_64QAM = prob_outdoor*mcs["64-QAM 3/4"][8] + prob_indoor*mcs["64-QAM 3/4"][9] + prob_incar*mcs["64-QAM 3/4"][10]
+
+    #Usuários ativos por modulação por célula
+    N_users_QPSK_numerador = pow(0.95*radius_QPSK,2) - pow(radius_16QAM,2)
+    N_users_16QAM_numerador = pow(radius_16QAM,2) - pow(radius_64QAM,2)
+    N_users_64QAM_numerador = pow(radius_64QAM,2)
+
+    N_users_QPSK = (N_users_QPSK_numerador / pow(radius_QPSK,2)) * active_users_per_cell
+    N_users_16QAM = (N_users_16QAM_numerador / pow(radius_QPSK,2)) * active_users_per_cell
+    N_users_64QAM = (N_users_64QAM_numerador / pow(radius_QPSK,2)) * active_users_per_cell
+
+    active_users = {
+        "QPSK 1/3": N_users_QPSK,
+        "16-QAM 1/2": N_users_16QAM,
+        "64-QAM 3/4": N_users_64QAM}
+
+    print("Checking user distribution: ", N_users_QPSK + N_users_16QAM + N_users_64QAM, " = ", active_users_per_cell)
+    return active_users
+
+
 
 if __name__ == "__main__":
 
@@ -218,7 +274,8 @@ if __name__ == "__main__":
         "prob_outdoor": 0,
         "prob_indoor": 0,
         "prob_incar": 0,
-        "figura": 0
+        "figura": 0,
+        "users": 0
     }
 
     #inputs
@@ -232,6 +289,7 @@ if __name__ == "__main__":
     inputs["prob_indoor"] = float(input("Select probability of user being indoors: "))
     inputs["prob_incar"] = float(input("Select probability of user being in a car: "))
     inputs["figura"] = float(input("Select noise figure: "))
+    inputs["users"] = int(input("Select amount of users in the area: "))
 
     bw = inputs["bandwidth"]
     area = inputs["area"]
@@ -243,11 +301,12 @@ if __name__ == "__main__":
     prob_indoor = inputs["prob_indoor"]
     prob_incar = inputs["prob_incar"]
     figura = inputs["figura"]
+    users = inputs["users"]
     mcs = start_mcs()
     n = 4
     sigma = 7.6
     prob_cobertura_celula = 0.9
-    
+
     #substituir as entradas ->
     mcs = outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
     mcs = indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
@@ -263,3 +322,8 @@ if __name__ == "__main__":
         mcs[modulation].append(cell_area)
         mcs[modulation].append(cell_quant)
         print(cell_area, cell_quant)
+
+    #mcs[modulation][11] e mcs[modulation][12] são respectivamente cell_area e cell_quant
+    capacity(bw, mcs)
+
+    active_users = active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs)
