@@ -28,11 +28,11 @@ def start_mcs():
 
 def count_hex(area, radius):
 
-    tri_area = radius*(radius*sqrt(3)/2)/2
-    hex_area = 6*tri_area
-    total_hex = area/hex_area
+    hex_area_m = 1.5*sqrt(3)*pow(radius, 2)
+    hex_area_km = hex_area_m/1000000
+    total_hex = area//hex_area_km
 
-    return hex_area, total_hex
+    return hex_area_km, total_hex
 
 def link_budget(pot_tx, pot_rx, Ms, Gt, Pt, decrease):
     Lmax = pot_tx - pot_rx + Gt - Pt - Ms - decrease
@@ -45,7 +45,7 @@ def max_radius(max_loss, freq, modulation):
 
     log_R_max = (max_loss - beta - 10*gama*log10(freq))/(10*alfa)
     R_max = pow(10, log_R_max)
-    print(modulation, "log:", log_R_max, "normal:", R_max)
+    #print(modulation, "log:", log_R_max, "normal:", R_max)
 
     return R_max
 
@@ -60,8 +60,7 @@ def loss_model(dist, freq):
 
 def outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     #prob_cobertura_borda = float()
-    #Ms = 4*n/sigma - 3
-    Ms = 4.75
+    Ms = 4*n/sigma - 3
     Q = 1 - (erfc(Ms/(sigma*sqrt(2))))/2
     #prob_cobertura_borda = 1 - Q
      
@@ -72,11 +71,12 @@ def outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     m_in = pow(10, M_in/10)
     D_in = 10*log10(m_in*gama*eta)
 
+    setor_gain = 4.77
     rate_rb = float()
     rate_total = float()
     temp_rate = float()
     temp_sinr = float()
-
+    
     for modulation in mcs:
         for sinr in reversed(range(0, 34)):
             rate_rb = mcs[modulation][2]/(mcs[modulation][3] + pow(e, mcs[modulation][4]*sinr))
@@ -94,6 +94,10 @@ def outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
 
         mcs[modulation].append(temp_rate)
         mcs[modulation].append(temp_sinr)
+
+        sir_mean = m_in*gama*temp_sinr + setor_gain
+        #print("SIR mínima:", temp_sinr, "SIR média:", sir_mean)
+        mcs[modulation].append(sir_mean)
 
         sens = temp_sinr + figura + 10*log10(180000) - 174 + D_in
         loss = link_budget(uplink_pot_tx,
@@ -109,8 +113,7 @@ def outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
 def indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     sigma = sqrt(64 + pow(sigma, 2))
 
-    #Ms = 4*n/sigma - 3
-    Ms = 4.75
+    Ms = 4*n/sigma - 3
     Q = (erfc(Ms/(sigma*sqrt(2))))/2
     prob_cobertura_borda = 1 - Q
 
@@ -141,8 +144,8 @@ def indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
             else:
                 break
 
-        mcs[modulation].append(temp_rate)
-        mcs[modulation].append(temp_sinr)
+        #mcs[modulation].append(temp_rate)
+        #mcs[modulation].append(temp_sinr)
 
         sens = temp_sinr + figura + 10*log10(180000) - 174 + D_in
         loss = link_budget(uplink_pot_tx,
@@ -156,10 +159,9 @@ def indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     return mcs
 
 def incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
-    sigma = sqrt(36 + pow(sigma, 2))
+    sigma = sqrt(9 + pow(sigma, 2))
 
-    #Ms = 4*n/sigma - 3
-    Ms = 4.75
+    Ms = 4*n/sigma - 3
     Q = (erfc(Ms/(sigma*sqrt(2))))/2
     prob_cobertura_borda = 1 - Q
 
@@ -190,8 +192,8 @@ def incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
             else:
                 break
 
-        mcs[modulation].append(temp_rate)
-        mcs[modulation].append(temp_sinr)
+        #mcs[modulation].append(temp_rate)
+        #mcs[modulation].append(temp_sinr)
 
         sens = temp_sinr + figura + 10*log10(180000) - 174 + D_in
         loss = link_budget(uplink_pot_tx,
@@ -251,10 +253,13 @@ if __name__ == "__main__":
     mcs = indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
     mcs = incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
 
-    for modulation in mcs:
-        radius = prob_outdoor*mcs[modulation][7] + prob_indoor*mcs[modulation][10] + prob_incar*mcs[modulation][13]
-        print(modulation, radius)
-    
-    print(mcs)
+    rate_list = list()
 
-    mcs = start_mcs()
+    for modulation in mcs:
+        rate_list.append(mcs[modulation][5])
+
+        radius = prob_outdoor*mcs[modulation][8] + prob_indoor*mcs[modulation][9] + prob_incar*mcs[modulation][10]
+        cell_area, cell_quant = count_hex(area, radius*0.95)
+        mcs[modulation].append(cell_area)
+        mcs[modulation].append(cell_quant)
+        print(cell_area, cell_quant)
