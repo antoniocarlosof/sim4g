@@ -15,6 +15,18 @@ uplink_rx_loss = 3 #dB
 uplink_multipath = 3 #dB
 uplink_shadow_margin = 4 #dB
 
+#Service mix
+#0 -> average bit rate
+#1 -> Service mix
+service_mix = {
+    "VoLTE": [22000, 0.22],
+    "Video Call": [384000, 0.08],
+    "Video Stream": [2000000, 0.28],
+    "Music Stream": [196000, 0.2],
+    "Web Browse": [2000000, 0.1],
+    "File Share": [2000000, 0.08],
+    "E-mail": [1000000, 0.04]}
+
 def start_mcs():
     # 0 -> bit rate
     # 1 -> code rate
@@ -146,7 +158,6 @@ def indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
 
         #mcs[modulation].append(temp_rate)
         #mcs[modulation].append(temp_sinr)
-
         sens = temp_sinr + figura + 10*log10(180000) - 174 + D_in
         loss = link_budget(uplink_pot_tx,
                             sens,
@@ -243,6 +254,10 @@ def active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs):
     radius_16QAM = prob_outdoor*mcs["16-QAM 1/2"][8] + prob_indoor*mcs["16-QAM 1/2"][9] + prob_incar*mcs["16-QAM 1/2"][10]
     radius_64QAM = prob_outdoor*mcs["64-QAM 3/4"][8] + prob_indoor*mcs["64-QAM 3/4"][9] + prob_incar*mcs["64-QAM 3/4"][10]
 
+    print("Raio QAM: ", radius_QPSK)
+    print("Raio 16QAM: ", radius_16QAM)
+    print("Raio 64QAM: ", radius_64QAM)
+
     #Usuários ativos por modulação por célula
     N_users_QPSK_numerador = pow(0.95*radius_QPSK,2) - pow(radius_16QAM,2)
     N_users_16QAM_numerador = pow(radius_16QAM,2) - pow(radius_64QAM,2)
@@ -253,14 +268,28 @@ def active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs):
     N_users_64QAM = (N_users_64QAM_numerador / pow(radius_QPSK,2)) * active_users_per_cell
 
     active_users = {
-        "QPSK 1/3": N_users_QPSK,
-        "16-QAM 1/2": N_users_16QAM,
-        "64-QAM 3/4": N_users_64QAM}
+        "QPSK 1/3": [N_users_QPSK],
+        "16-QAM 1/2": [N_users_16QAM],
+        "64-QAM 3/4": [N_users_64QAM]}
 
-    print("Checking user distribution: ", N_users_QPSK + N_users_16QAM + N_users_64QAM, " = ", active_users_per_cell)
+    print("Users using QPSK: ", N_users_QPSK)
+    print("Users using 16QAM: ", N_users_16QAM)
+    print("Users using 64QAM: ", N_users_64QAM)
+    print("Active users per cell: ", N_users_QPSK + N_users_16QAM + N_users_64QAM)
     return active_users
 
+def required_throughput(active_users, service_mix):
+    #per modulation per cell
+    for modulation in active_users:
+        total_throughput = 0
+        for service in service_mix:
+            service_bitrate = active_users[modulation][0]*service_mix[service][0]*service_mix[service][1]
+            total_throughput = total_throughput + service_bitrate
+        active_users[modulation].append(total_throughput)
 
+    print("active_users: ", active_users)
+
+    return active_users
 
 if __name__ == "__main__":
 
@@ -307,7 +336,6 @@ if __name__ == "__main__":
     sigma = 7.6
     prob_cobertura_celula = 0.9
 
-    #substituir as entradas ->
     mcs = outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
     mcs = indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
     mcs = incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
@@ -327,3 +355,4 @@ if __name__ == "__main__":
     capacity(bw, mcs)
 
     active_users = active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs)
+    active_users = required_throughput(active_users, service_mix) #active_users[modulation][1] is now required throughput
