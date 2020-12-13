@@ -86,32 +86,30 @@ def outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     setor_gain = 4.77
     rate_rb = float()
     rate_total = float()
-    temp_rate = float()
-    temp_sinr = float()
+    sinr_mod = [1, 6, 14]
 
-    for modulation in mcs:
-        for sinr in reversed(range(0, 34)):
-            rate_rb = mcs[modulation][2]/(mcs[modulation][3] + pow(e, mcs[modulation][4]*sinr))
-            rate_total = rate_rb*(5*bw)
+    for n, modulation in enumerate(mcs):
+        rate_rb = mcs[modulation][2]/(mcs[modulation][3] + pow(e, mcs[modulation][4]*sinr_mod[n]))
+        rate_total = rate_rb*(5*bw)
 
-            if rate_total > desired_throughput:
-                temp_rate = rate_total
-                temp_sinr = sinr
-            elif rate_total == desired_throughput:
-                temp_rate = rate_total
-                temp_sinr = sinr
-                break
-            else:
-                break
+        mcs[modulation].append(rate_total)
+        mcs[modulation].append(sinr_mod[n])
 
-        mcs[modulation].append(temp_rate)
-        mcs[modulation].append(temp_sinr)
+        sir_mean = m_in*gama*sinr_mod[n]
 
-        sir_mean = m_in*gama*temp_sinr + setor_gain
-        #print("SIR mínima:", temp_sinr, "SIR média:", sir_mean)
+        if sir_mean <= sinr_mod[n]:
+            sir_mean = sir_mean + setor_gain
+            print("SIR média de ", sir_mean, "dB com setorização tripla e fator de reúso 1.")
+            
+            if sir_mean <= sinr_mod[n]:
+                sir_mean = sir_mean + 3
+                print("SIR média de ", sir_mean, "dB com setorização sextupla e fator de reúso 1.")
+        else:
+            print("SIR média de ", sir_mean, "dB sem setorização e fator de reúso 1.")
+
         mcs[modulation].append(sir_mean)
 
-        sens = temp_sinr + figura + 10*log10(180000) - 174 + D_in
+        sens = sinr_mod[n] + figura + 10*log10(bw*pow(10, 6)) - 174 + D_in
         loss = link_budget(uplink_pot_tx,
                             sens,
                             Ms,
@@ -140,25 +138,10 @@ def indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     rate_total = float()
     temp_rate = float()
     temp_sinr = float()
+    sinr_mod = [1, 6, 14]
 
-    for modulation in mcs:
-        for sinr in reversed(range(0, 34)):
-            rate_rb = mcs[modulation][2]/(mcs[modulation][3] + pow(e, mcs[modulation][4]*sinr))
-            rate_total = rate_rb*(5*bw)
-
-            if rate_total > desired_throughput:
-                temp_rate = rate_total
-                temp_sinr = sinr
-            elif rate_total == desired_throughput:
-                temp = rate_total
-                temp_sinr = sinr
-                break
-            else:
-                break
-
-        #mcs[modulation].append(temp_rate)
-        #mcs[modulation].append(temp_sinr)
-        sens = temp_sinr + figura + 10*log10(180000) - 174 + D_in
+    for n, modulation in enumerate(mcs):
+        sens = sinr_mod[n] + figura + 10*log10(bw*pow(10, 6)) - 174 + D_in
         loss = link_budget(uplink_pot_tx,
                             sens,
                             Ms,
@@ -187,26 +170,10 @@ def incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     rate_total = float()
     temp_rate = float()
     temp_sinr = float()
+    sinr_mod = [1, 6, 14]
 
-    for modulation in mcs:
-        for sinr in reversed(range(0, 34)):
-            rate_rb = mcs[modulation][2]/(mcs[modulation][3] + pow(e, mcs[modulation][4]*sinr))
-            rate_total = rate_rb*(5*bw)
-
-            if rate_total > desired_throughput:
-                temp_rate = rate_total
-                temp_sinr = sinr
-            elif rate_total == desired_throughput:
-                temp = rate_total
-                temp_sinr = sinr
-                break
-            else:
-                break
-
-        #mcs[modulation].append(temp_rate)
-        #mcs[modulation].append(temp_sinr)
-
-        sens = temp_sinr + figura + 10*log10(180000) - 174 + D_in
+    for n, modulation in enumerate(mcs):
+        sens = sinr_mod[n] + figura + 10*log10(bw*pow(10, 6)) - 174 + D_in
         loss = link_budget(uplink_pot_tx,
                             sens,
                             Ms,
@@ -346,13 +313,14 @@ if __name__ == "__main__":
         rate_list.append(mcs[modulation][5])
 
         radius = prob_outdoor*mcs[modulation][8] + prob_indoor*mcs[modulation][9] + prob_incar*mcs[modulation][10]
+        print("Raio", modulation, "->", radius)
         cell_area, cell_quant = count_hex(area, radius*0.95)
         mcs[modulation].append(cell_area)
         mcs[modulation].append(cell_quant)
         print(cell_area, cell_quant)
 
     #mcs[modulation][11] e mcs[modulation][12] são respectivamente cell_area e cell_quant
-    capacity(bw, mcs)
+    #capacity(bw, mcs)
 
-    active_users = active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs)
-    active_users = required_throughput(active_users, service_mix) #active_users[modulation][1] is now required throughput
+    #active_users = active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs)
+    #active_users = required_throughput(active_users, service_mix) #active_users[modulation][1] is now required throughput
