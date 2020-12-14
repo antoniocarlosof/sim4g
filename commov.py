@@ -247,6 +247,37 @@ def check_sinr(active_users, mcs, m_in, gama):
                 print("Mean SIR of", mean_sir, "dB using no sectorization and reuse factor", k)
                 break
 
+def var_to_rad(sigma, n, ro, gama, eta, bw, figura, mcs):
+    mcs, m_in = outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
+    mcs = indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
+    mcs = incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
+
+    radius = 0.3*mcs["QPSK 1/3"][5] + 0.4*mcs["QPSK 1/3"][6] + 0.3*mcs["QPSK 1/3"][7]
+
+    return radius
+
+def print_graph(rad_list, type_var):
+    variables = list()
+    
+    for x in range(1, 100):
+        y = x/100
+
+        if type_var == "eta":
+            y = y + 1
+
+        variables.append(y)
+    
+    fig_title = "Variação do raio de acordo com a variação de " + type_var
+    fig_name = "Raio x " + type_var + ".png"
+
+    plt.title(fig_title)
+    plt.xlabel(type_var)
+    plt.ylabel("raio [m]")
+    plt.grid(True)
+    plt.plot(variables, rad_list)
+    plt.savefig(fig_name, format="png")
+    plt.clf()
+
 if __name__ == "__main__":
 
     inputs = {
@@ -289,6 +320,8 @@ if __name__ == "__main__":
     sigma = 7.6
     prob_cobertura_celula = 0.9
 
+    mcs_copy = mcs
+
     mcs, m_in = outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
     mcs = indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
     mcs = incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
@@ -308,3 +341,21 @@ if __name__ == "__main__":
     active_users = active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs, cell_area)
     active_users = required_throughput(active_users, service_mix) #active_users[modulation][1] is now required throughput
     check_sinr(active_users, mcs, m_in, gama)
+
+    print("Generating graphs...")
+
+    radius_gama = list()
+    radius_eta = list()
+    radius_ro = list()
+
+    for i in range(1, 100):
+        var01 = i/100
+        var12 = (i/10)
+
+        radius_gama.append(var_to_rad(sigma, n, ro, var01, eta, bw, figura, mcs_copy))
+        radius_eta.append(var_to_rad(sigma, n, ro, gama, var12, bw, figura, mcs_copy))
+        radius_ro.append(var_to_rad(sigma, n, var01, gama, eta, bw, figura, mcs_copy))
+    
+    print_graph(radius_gama, "gama")
+    print_graph(radius_eta, "eta")
+    print_graph(radius_ro, "ro")
