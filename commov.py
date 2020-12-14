@@ -99,13 +99,13 @@ def outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
 
         if sir_mean <= sinr_mod[n]:
             sir_mean = sir_mean + setor_gain
-            print("SIR média de ", sir_mean, "dB com setorização tripla e fator de reúso 1.")
-            
+            print(modulation, ": SIR média de ", round(sir_mean,2), "dB com setorização tripla e fator de reúso 1.")
+
             if sir_mean <= sinr_mod[n]:
                 sir_mean = sir_mean + 3
-                print("SIR média de ", sir_mean, "dB com setorização sextupla e fator de reúso 1.")
+                print(modulation, "SIR média de ", round(sir_mean,2), "dB com setorização sextupla e fator de reúso 1.")
         else:
-            print("SIR média de ", sir_mean, "dB sem setorização e fator de reúso 1.")
+            print(modulation, "SIR média de ", round(sir_mean,2), "dB sem setorização e fator de reúso 1.")
 
         mcs[modulation].append(sir_mean)
 
@@ -208,7 +208,7 @@ def capacity(bw, mcs):
 
     for modulation in mcs:
         Capacity = (12 * Nrb * 7 * mcs[modulation][0]*mcs[modulation][1] * 2) / 0.001
-        print(modulation, ": a capacidade estimada do sistema é ", Capacity, " bps")
+        print(modulation, ": a capacidade estimada do sistema é ", round(Capacity,2), " bps")
 
 def active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs):
     active_users_total = users*0.15*0.1 #Penetration Ratio de 15% e Usage Ratio de 10%
@@ -220,10 +220,6 @@ def active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs):
     radius_QPSK = prob_outdoor*mcs["QPSK 1/3"][8] + prob_indoor*mcs["QPSK 1/3"][9] + prob_incar*mcs["QPSK 1/3"][10]
     radius_16QAM = prob_outdoor*mcs["16-QAM 1/2"][8] + prob_indoor*mcs["16-QAM 1/2"][9] + prob_incar*mcs["16-QAM 1/2"][10]
     radius_64QAM = prob_outdoor*mcs["64-QAM 3/4"][8] + prob_indoor*mcs["64-QAM 3/4"][9] + prob_incar*mcs["64-QAM 3/4"][10]
-
-    print("Raio QAM: ", radius_QPSK)
-    print("Raio 16QAM: ", radius_16QAM)
-    print("Raio 64QAM: ", radius_64QAM)
 
     #Usuários ativos por modulação por célula
     N_users_QPSK_numerador = pow(0.95*radius_QPSK,2) - pow(radius_16QAM,2)
@@ -239,10 +235,10 @@ def active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs):
         "16-QAM 1/2": [N_users_16QAM],
         "64-QAM 3/4": [N_users_64QAM]}
 
-    print("Users using QPSK: ", N_users_QPSK)
-    print("Users using 16QAM: ", N_users_16QAM)
-    print("Users using 64QAM: ", N_users_64QAM)
-    print("Active users per cell: ", N_users_QPSK + N_users_16QAM + N_users_64QAM)
+    print("Users using QPSK: ", round(N_users_QPSK,2))
+    print("Users using 16QAM: ", round(N_users_16QAM,2))
+    print("Users using 64QAM: ", round(N_users_64QAM,2))
+    print("Active users per cell: ", round(N_users_QPSK + N_users_16QAM + N_users_64QAM),2)
     return active_users
 
 def required_throughput(active_users, service_mix):
@@ -252,9 +248,8 @@ def required_throughput(active_users, service_mix):
         for service in service_mix:
             service_bitrate = active_users[modulation][0]*service_mix[service][0]*service_mix[service][1]
             total_throughput = total_throughput + service_bitrate
+        print("Required Total Throughput for (", modulation, "): ", round(total_throughput,2))
         active_users[modulation].append(total_throughput)
-
-    print("active_users: ", active_users)
 
     return active_users
 
@@ -263,7 +258,6 @@ if __name__ == "__main__":
     inputs = {
         "bandwidth": 0,
         "area": 0,
-        "throughput": 0,
         "ro": 0,
         "gama": 0,
         "eta": 0,
@@ -275,21 +269,19 @@ if __name__ == "__main__":
     }
 
     #inputs
-    inputs["bandwidth"] = float(input("Please select Bandwidth: "))
-    inputs["area"] = float(input("Select desired area to be covered: "))
-    inputs["throughput"] = float(input("Select desired throughput: "))
-    inputs["ro"] = float(input("Select ro: "))
-    inputs["gama"] = float(input("Select gama: "))
-    inputs["eta"] = float(input("Select eta: "))
-    inputs["prob_outdoor"] = float(input("Select probability of user being outdoors: "))
-    inputs["prob_indoor"] = float(input("Select probability of user being indoors: "))
-    inputs["prob_incar"] = float(input("Select probability of user being in a car: "))
-    inputs["figura"] = float(input("Select noise figure: "))
-    inputs["users"] = int(input("Select amount of users in the area: "))
+    inputs["bandwidth"] = float(input("Please select Bandwidth in MHz[Default:20]: ") or "20")
+    inputs["area"] = float(input("Select desired area to be covered in km2[Default:5]: ") or "5")
+    inputs["ro"] = float(input("Select ro[Default:0.8]: ") or "0.8")
+    inputs["gama"] = float(input("Select gama[Default:0.8]: ") or "0.8")
+    inputs["eta"] = float(input("Select eta[Default:1.5]: ") or "1.5")
+    inputs["prob_outdoor"] = float(input("Select probability of user being outdoors[Default:0.2]: ") or "0.2")
+    inputs["prob_indoor"] = float(input("Select probability of user being indoors[Default:0.5]: ") or "0.5")
+    inputs["prob_incar"] = float(input("Select probability of user being in a car[Default: 0.3]: ") or "0.3")
+    inputs["figura"] = float(input("Select noise figure[Default:8]: ") or "8")
+    inputs["users"] = int(input("Select amount of users in the area[Default:4000]: ") or "4000")
 
     bw = inputs["bandwidth"]
     area = inputs["area"]
-    desired_throughput = inputs["throughput"]
     ro = inputs["ro"]
     gama = inputs["gama"]
     eta = inputs["eta"]
@@ -313,14 +305,14 @@ if __name__ == "__main__":
         rate_list.append(mcs[modulation][5])
 
         radius = prob_outdoor*mcs[modulation][8] + prob_indoor*mcs[modulation][9] + prob_incar*mcs[modulation][10]
-        print("Raio", modulation, "->", radius)
+        print("Raio", modulation, "->", round(radius,2))
         cell_area, cell_quant = count_hex(area, radius*0.95)
         mcs[modulation].append(cell_area)
         mcs[modulation].append(cell_quant)
-        print(cell_area, cell_quant)
+        print(modulation, "-> Cell Area: ", round(cell_area,2), "| Amount of cells required: ", round(cell_quant,2))
 
     #mcs[modulation][11] e mcs[modulation][12] são respectivamente cell_area e cell_quant
-    #capacity(bw, mcs)
+    capacity(bw, mcs)
 
-    #active_users = active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs)
-    #active_users = required_throughput(active_users, service_mix) #active_users[modulation][1] is now required throughput
+    active_users = active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs)
+    active_users = required_throughput(active_users, service_mix) #active_users[modulation][1] is now required throughput
