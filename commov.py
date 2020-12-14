@@ -50,7 +50,7 @@ def link_budget(pot_tx, pot_rx, Ms, Gt, Pt, decrease):
     Lmax = pot_tx - pot_rx + Gt - Pt - Ms - decrease
     return Lmax
 
-def max_radius(max_loss, freq, modulation):
+def max_radius(max_loss, freq):
     alfa = 4
     beta = 10.2
     gama = 2.36
@@ -89,36 +89,16 @@ def outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     sinr_mod = [1, 6, 14]
 
     for n, modulation in enumerate(mcs):
-        rate_rb = mcs[modulation][2]/(mcs[modulation][3] + pow(e, mcs[modulation][4]*sinr_mod[n]))
-        rate_total = rate_rb*(5*bw)
-
-        mcs[modulation].append(rate_total)
-        mcs[modulation].append(sinr_mod[n])
-
-        sir_mean = m_in*gama*sinr_mod[n]
-
-        if sir_mean <= sinr_mod[n]:
-            sir_mean = sir_mean + setor_gain
-            print(modulation, ": SIR média de ", round(sir_mean,2), "dB com setorização tripla e fator de reúso 1.")
-
-            if sir_mean <= sinr_mod[n]:
-                sir_mean = sir_mean + 3
-                print(modulation, "SIR média de ", round(sir_mean,2), "dB com setorização sextupla e fator de reúso 1.")
-        else:
-            print(modulation, "SIR média de ", round(sir_mean,2), "dB sem setorização e fator de reúso 1.")
-
-        mcs[modulation].append(sir_mean)
-
-        sens = sinr_mod[n] + figura + 10*log10(bw*pow(10, 6)) - 174 + D_in
+        sens = sinr_mod[n] + figura + 10*log10(bw*5*180000) - 174 + D_in
         loss = link_budget(uplink_pot_tx,
                             sens,
                             Ms,
                             uplink_multipath + uplink_Gtx + uplink_Grx,
                             uplink_rx_loss + uplink_tx_loss,
                             0)
-        mcs[modulation].append(max_radius(loss, 2.6, modulation))
+        mcs[modulation].append(max_radius(loss, 2.6))
 
-    return mcs
+    return mcs, m_in
 
 def indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     sigma = sqrt(64 + pow(sigma, 2))
@@ -141,14 +121,14 @@ def indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     sinr_mod = [1, 6, 14]
 
     for n, modulation in enumerate(mcs):
-        sens = sinr_mod[n] + figura + 10*log10(bw*pow(10, 6)) - 174 + D_in
+        sens = sinr_mod[n] + figura + 10*log10(bw*5*180000) - 174 + D_in
         loss = link_budget(uplink_pot_tx,
                             sens,
                             Ms,
                             uplink_multipath + uplink_Gtx + uplink_Grx,
                             uplink_rx_loss + uplink_tx_loss,
                             20)
-        mcs[modulation].append(max_radius(loss, 2.6, modulation))
+        mcs[modulation].append(max_radius(loss, 2.6))
 
     return mcs
 
@@ -173,53 +153,27 @@ def incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     sinr_mod = [1, 6, 14]
 
     for n, modulation in enumerate(mcs):
-        sens = sinr_mod[n] + figura + 10*log10(bw*pow(10, 6)) - 174 + D_in
+        sens = sinr_mod[n] + figura + 10*log10(bw*5*180000) - 174 + D_in
         loss = link_budget(uplink_pot_tx,
                             sens,
                             Ms,
                             uplink_multipath + uplink_Gtx + uplink_Grx,
                             uplink_rx_loss + uplink_tx_loss,
                             10)
-        mcs[modulation].append(max_radius(loss, 2.6, modulation))
+        mcs[modulation].append(max_radius(loss, 2.6))
 
     return mcs
 
-def capacity(bw, mcs):
-    if bw == 20:
-        Nsc = 1200
-        Nrb = 100
-    elif bw == 15:
-        Nsc = 900
-        Nrb = 75
-    elif bw == 10:
-        Nsc = 600
-        Nrb = 50
-    elif bw == 5:
-        Nsc = 300
-        Nrb = 25
-    elif bw == 3:
-        Nsc = 180
-        Nrb = 15
-    elif bw == 1.4:
-        Nsc = 72
-        Nrb = 6
-    else:
-        print("Invalid Bandwidth. Choose either 20, 15, 10, 5, 3 or 1.4.[MHz]")
-
-    for modulation in mcs:
-        Capacity = (12 * Nrb * 7 * mcs[modulation][0]*mcs[modulation][1] * 2) / 0.001
-        print(modulation, ": a capacidade estimada do sistema é ", round(Capacity,2), " bps")
-
-def active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs):
+def active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs, cell_area):
     active_users_total = users*0.15*0.1 #Penetration Ratio de 15% e Usage Ratio de 10%
     user_density = active_users_total/area
 
-    active_users_per_cell = user_density*mcs["QPSK 1/3"][11]
+    active_users_per_cell = user_density*cell_area
 
     #Raios iniciais para cada modulação
-    radius_QPSK = prob_outdoor*mcs["QPSK 1/3"][8] + prob_indoor*mcs["QPSK 1/3"][9] + prob_incar*mcs["QPSK 1/3"][10]
-    radius_16QAM = prob_outdoor*mcs["16-QAM 1/2"][8] + prob_indoor*mcs["16-QAM 1/2"][9] + prob_incar*mcs["16-QAM 1/2"][10]
-    radius_64QAM = prob_outdoor*mcs["64-QAM 3/4"][8] + prob_indoor*mcs["64-QAM 3/4"][9] + prob_incar*mcs["64-QAM 3/4"][10]
+    radius_QPSK = prob_outdoor*mcs["QPSK 1/3"][5] + prob_indoor*mcs["QPSK 1/3"][6] + prob_incar*mcs["QPSK 1/3"][7]
+    radius_16QAM = prob_outdoor*mcs["16-QAM 1/2"][5] + prob_indoor*mcs["16-QAM 1/2"][6] + prob_incar*mcs["16-QAM 1/2"][7]
+    radius_64QAM = prob_outdoor*mcs["64-QAM 3/4"][5] + prob_indoor*mcs["64-QAM 3/4"][6] + prob_incar*mcs["64-QAM 3/4"][7]
 
     #Usuários ativos por modulação por célula
     N_users_QPSK_numerador = pow(0.95*radius_QPSK,2) - pow(radius_16QAM,2)
@@ -235,10 +189,10 @@ def active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs):
         "16-QAM 1/2": [N_users_16QAM],
         "64-QAM 3/4": [N_users_64QAM]}
 
-    print("Users using QPSK: ", round(N_users_QPSK,2))
-    print("Users using 16QAM: ", round(N_users_16QAM,2))
-    print("Users using 64QAM: ", round(N_users_64QAM,2))
-    print("Active users per cell: ", round(N_users_QPSK + N_users_16QAM + N_users_64QAM),2)
+    print("Average users using QPSK:", active_users["QPSK 1/3"][0])
+    print("Average users using 16QAM:", active_users["16-QAM 1/2"][0])
+    print("Average users using 64QAM:", active_users["64-QAM 3/4"][0])
+    print("Average active users per cell:", N_users_QPSK + N_users_16QAM + N_users_64QAM)
     return active_users
 
 def required_throughput(active_users, service_mix):
@@ -252,6 +206,46 @@ def required_throughput(active_users, service_mix):
         active_users[modulation].append(total_throughput)
 
     return active_users
+
+def check_sinr(active_users, mcs, m_in, gama):
+    min_sinr = int()
+    sinr_list = [1, 6, 14]
+
+    for n, modulation in enumerate(active_users):
+        for sinr in reversed(range(sinr_list[n], 34)):
+            rate_rb = mcs[modulation][2]/(mcs[modulation][3] + pow(e, mcs[modulation][4]*sinr))
+            rate_total = rate_rb*(5*bw)
+
+            if rate_total > active_users[modulation][1]:
+                min_sinr = sinr
+            elif rate_total == active_users[modulation][1]:
+                min_sinr = sinr
+                break
+            else:
+                break
+        
+        mean_sir = m_in*gama*min_sinr
+
+        for k in range(1, 14):
+            mean_sir = mean_sir + 10*log10(pow(k, 2))
+
+            if mean_sir <= min_sinr:
+                mean_sir = mean_sir + 4.77
+
+                if mean_sir <= min_sinr:
+                    mean_sir = mean_sir + 3
+
+                    if mean_sir <= min_sinr:
+                        mean_sir = mean_sir - 7.77 - 10*log10(pow(k, 2))
+                    else:
+                        print("Mean SIR of", mean_sir, "dB using six sectors per cell and reuse factor", k)
+                        break
+                else:    
+                    print("Mean SIR of", mean_sir, "dB using three sectors per cell and reuse factor", k)
+                    break
+            else:
+                print("Mean SIR of", mean_sir, "dB using no sectorization and reuse factor", k)
+                break
 
 if __name__ == "__main__":
 
@@ -271,11 +265,11 @@ if __name__ == "__main__":
     #inputs
     inputs["bandwidth"] = float(input("Please select Bandwidth in MHz[Default:20]: ") or "20")
     inputs["area"] = float(input("Select desired area to be covered in km2[Default:5]: ") or "5")
-    inputs["ro"] = float(input("Select ro[Default:0.8]: ") or "0.8")
-    inputs["gama"] = float(input("Select gama[Default:0.8]: ") or "0.8")
-    inputs["eta"] = float(input("Select eta[Default:1.5]: ") or "1.5")
-    inputs["prob_outdoor"] = float(input("Select probability of user being outdoors[Default:0.2]: ") or "0.2")
-    inputs["prob_indoor"] = float(input("Select probability of user being indoors[Default:0.5]: ") or "0.5")
+    inputs["ro"] = float(input("Select neighbour cells signals correlation ro[Default:0.8]: ") or "0.8")
+    inputs["gama"] = float(input("Select charge factor gama[Default:0.8]: ") or "0.8")
+    inputs["eta"] = float(input("Select mean SNR degradation due to interference eta[Default:1.5]: ") or "1.5")
+    inputs["prob_outdoor"] = float(input("Select probability of user being outdoors[Default:0.3]: ") or "0.3")
+    inputs["prob_indoor"] = float(input("Select probability of user being indoors[Default:0.4]: ") or "0.4")
     inputs["prob_incar"] = float(input("Select probability of user being in a car[Default: 0.3]: ") or "0.3")
     inputs["figura"] = float(input("Select noise figure[Default:8]: ") or "8")
     inputs["users"] = int(input("Select amount of users in the area[Default:4000]: ") or "4000")
@@ -295,24 +289,22 @@ if __name__ == "__main__":
     sigma = 7.6
     prob_cobertura_celula = 0.9
 
-    mcs = outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
+    mcs, m_in = outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
     mcs = indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
     mcs = incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
 
     rate_list = list()
 
     for modulation in mcs:
-        rate_list.append(mcs[modulation][5])
+        radius = prob_outdoor*mcs[modulation][5] + prob_indoor*mcs[modulation][6] + prob_incar*mcs[modulation][7]
+        radius = round(radius,4)
+        print(modulation, "radius:", radius, "m")
+        mcs[modulation].append(radius)
+        
+    cell_area, cell_quant = count_hex(area, mcs["QPSK 1/3"][8]*0.95)
+    print("Cell area:", round(cell_area,2), "km²")
+    print("Cell quantity:", cell_quant)
 
-        radius = prob_outdoor*mcs[modulation][8] + prob_indoor*mcs[modulation][9] + prob_incar*mcs[modulation][10]
-        print("Raio", modulation, "->", round(radius,2))
-        cell_area, cell_quant = count_hex(area, radius*0.95)
-        mcs[modulation].append(cell_area)
-        mcs[modulation].append(cell_quant)
-        print(modulation, "-> Cell Area: ", round(cell_area,2), "| Amount of cells required: ", round(cell_quant,2))
-
-    #mcs[modulation][11] e mcs[modulation][12] são respectivamente cell_area e cell_quant
-    capacity(bw, mcs)
-
-    active_users = active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs)
+    active_users = active_users(users, area, prob_outdoor, prob_indoor, prob_incar, mcs, cell_area)
     active_users = required_throughput(active_users, service_mix) #active_users[modulation][1] is now required throughput
+    check_sinr(active_users, mcs, m_in, gama)
