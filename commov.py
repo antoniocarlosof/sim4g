@@ -76,13 +76,11 @@ def outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
     #Ms = 4*n/sigma - 3
     Ms = 4.6
     Q = 1 - (erfc(Ms/(sigma*sqrt(2))))/2
-    print("Q: ",Q)
     #prob_cobertura_borda = 1 - Q
 
     sigma_sir = sqrt(2*sigma*sigma*(1-ro))
     Q_inv = sqrt(2)*erfcinv(2*Q)
     M_in = -1*Q_inv*sigma_sir
-    print("M_in: ", M_in)
 
     m_in = pow(10, M_in/10)
     D_in = 10*log10(m_in*gama*eta)
@@ -94,14 +92,12 @@ def outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs):
 
     for n, modulation in enumerate(mcs):
         sens = sinr_mod[n] + figura + 10*log10(180000) - 174 + D_in
-        print("sens: ", sens)
         loss = link_budget(uplink_pot_tx,
                             sens,
                             Ms,
                             uplink_Gtx + uplink_Grx + uplink_TMA,
                             uplink_rx_loss + uplink_tx_loss,
                             0)
-        print("link budget: ",loss)
         mcs[modulation].append(max_radius(loss, 2.6))
 
     return mcs, m_in
@@ -248,19 +244,23 @@ def check_sinr(active_users, mcs, m_in, gama):
                     if mean_sir <= min_sinr:
                         mean_sir = mean_sir - 7.77 - 10*log10(pow(k, 2))
                     else:
-                        print("Mean SIR of", mean_sir, "dB using six sectors per cell and reuse factor", k)
+                        print("Mean SIR of", mean_sir, "dB and reuse factor", k)
                         break
                 else:
-                    print("Mean SIR of", mean_sir, "dB using three sectors per cell and reuse factor", k)
+                    print("Mean SIR of", mean_sir, "dB and reuse factor", k)
                     break
             else:
-                print("Mean SIR of", mean_sir, "dB using no sectorization and reuse factor", k)
+                print("Mean SIR of", mean_sir, "dB and reuse factor", k)
                 break
 
 def var_to_rad(sigma, n, ro, gama, eta, bw, figura, mcs):
     mcs, m_in = outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
     mcs = indoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
     mcs = incar_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
+
+    del(mcs["QPSK 1/3"][5])
+    del(mcs["QPSK 1/3"][5])
+    del(mcs["QPSK 1/3"][5])
 
     radius = 0.3*mcs["QPSK 1/3"][5] + 0.4*mcs["QPSK 1/3"][6] + 0.3*mcs["QPSK 1/3"][7]
 
@@ -357,6 +357,8 @@ if __name__ == "__main__":
     radius_gama = list()
     radius_eta = list()
     radius_ro = list()
+
+    del(mcs_copy["QPSK 1/3"][8])
 
     for i in range(1, 100):
         var01 = i/100
