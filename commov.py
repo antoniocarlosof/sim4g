@@ -206,7 +206,7 @@ def required_throughput(active_users, service_mix):
         for service in service_mix:
             service_bitrate = active_users[modulation][0]*service_mix[service][0]*service_mix[service][1]
             total_throughput = total_throughput + service_bitrate
-        print("Required Total Throughput for (", modulation, "): ", round(total_throughput,2))
+        print("Required Total Throughput for (", modulation, "): ", round(total_throughput,2), "bps")
         active_users[modulation].append(total_throughput)
 
     return active_users
@@ -252,6 +252,8 @@ def check_sinr(active_users, mcs, m_in, gama):
             else:
                 print("Mean SIR of", mean_sir, "dB and reuse factor", k)
                 break
+    
+    print("Using cell sectors to increase mean SIR.")
 
 def var_to_rad(sigma, n, ro, gama, eta, bw, figura, mcs):
     mcs, m_in = outdoor_radius(sigma, n, ro, gama, eta, bw, figura, mcs)
